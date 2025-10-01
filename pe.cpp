@@ -162,8 +162,12 @@ int main() {
     }
 
     // Crear caches y PEs
-    std::vector<std::unique_ptr<MockCache>> caches;
+    std::vector<std::unique_ptr<Cache>> caches;
     std::vector<std::unique_ptr<PE>> pes;
+    
+    NullInterconnect bus;  
+    IInterconnect* inter_ptr = &bus;
+
     for (int i = 0; i < P; i++) {
         auto mem_load = [&mem](size_t addr){ return mem.load(addr); };
         auto mem_store = [&mem](size_t addr, double v){ mem.store(addr, v); };
