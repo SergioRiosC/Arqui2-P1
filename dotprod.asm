@@ -1,18 +1,13 @@
-;Considering
-;REG0: initial address of segment A for this PE
-;REG1: initial address of segment B for this PE
-;REG2: local accumulator address for this PE (partial_sums[ID])
-;REG3: iteration counter (N/4)
-
-LOAD REG 4, [REG2]		;Accumulates doubles (partial_sums[ID])
+# Producto punto parcial
+LOAD R4, [R2]        # acumulador inicial
 LOOP:
-	LOAD REG5, [REG0]	;Load A[i] (double)
-	LOAD REG6, [REG1]	;Load B[i] (double)
-	FMUL REG7, REG5, REG6	;REG7 = A[i]*B[i] (double)
-	FADD REG4, REG4, REG7	;REG4 += REG7 (double)	
-	INC REG0		;Next element of A
-	INC REG1		;Next element of B
-	DEC REG3
-	JNZ REG3, LOOP
-
-STORE REG4, [REG2]		;Store the partial_sums (double)
+    LOAD R5, [R0]    # A[i]
+    LOAD R6, [R1]    # B[i]
+    FMUL R7, R5, R6
+    FADD R4, R4, R7
+    INC R0
+    INC R1
+    DEC R3
+    JNZ R3, LOOP
+STORE R4, [R2]
+HALT
