@@ -10,12 +10,12 @@
 #include "cache.h"
 
 // ---------------- Cache / Memoria ----------------
-struct CacheResponse {
+/*struct CacheResponse {
     double value;
     bool hit;
     size_t busTrafficBytes;
     CacheResponse(): value(0.0), hit(false), busTrafficBytes(0) {}
-};
+};*/
 
 class Memory {
 public:
@@ -65,7 +65,7 @@ private:
 // ---------------- PE ----------------
 class PE {
 public:
-    PE(int id, MockCache* cache): id(id), cache(cache), pc(0), halt_flag(false) {
+    PE(int id, ICache* cache): id(id), cache(cache), pc(0), halt_flag(false) {
         for(int i=0;i<8;i++) regs_raw[i]=0;
     }
 
@@ -94,7 +94,7 @@ public:
 
 private:
     int id;
-    MockCache* cache;
+    ICache* cache;
     int pc;
     bool halt_flag;
     std::vector<Instr> program;
@@ -169,10 +169,12 @@ int main() {
     IInterconnect* inter_ptr = &bus;
 
     for (int i = 0; i < P; i++) {
-        auto mem_load = [&mem](size_t addr){ return mem.load(addr); };
-        auto mem_store = [&mem](size_t addr, double v){ mem.store(addr, v); };
-        caches.push_back(std::make_unique<Cache>(i, mem_load, mem_store, inter_ptr));
-
+        caches.push_back(std::make_unique<Cache>(
+            i,
+            [&](size_t addr){ return mem.load(addr); },
+            [&](size_t addr, double v){ mem.store(addr,v); },
+            inter_ptr
+        ));
         pes.push_back(std::make_unique<PE>(i, caches[i].get()));
     }
 
