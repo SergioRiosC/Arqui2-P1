@@ -1,7 +1,7 @@
 // cache.hpp
 // C++17 — Modelo de caché privada por PE (2-way, 16 bloques, 32B) con MESI,
 // write-allocate, write-back e interconnect sencillo para snooping.
-// Autor: (tu equipo)
+// Autor: Fabian Crawford
 // Compilar demo: g++ -std=c++17 -O2 -pthread cache.hpp -o cache_demo -DCACHE_DEMO
 
 #pragma once
@@ -472,3 +472,4 @@ int main() {
     return 0;
 }
 #endif
+
