@@ -1,0 +1,5 @@
+clang++ -std=c++17 shared_memory.cpp shared_memory_test.cpp -pthread -O2 -o shared_memory_test
+g++ -std=c++17 shared_memory.cpp shared_memory_test.cpp -pthread -O2 -o shared_memory_test
+
+
+./shared_memory_test
