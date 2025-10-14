@@ -1,16 +1,16 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -O2 -pthread
+SOURCES = pe.cpp parser.cpp cache.cpp
+OBJECTS = $(SOURCES:.cpp=.o)
+TARGET = pe
 
-all: pe
+all: $(TARGET)
 
-pe: pe.o parser.o
-	$(CXX) $(CXXFLAGS) -o pe pe.o parser.o
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
 
-pe.o: pe.cpp parser.h instr.h
-	$(CXX) $(CXXFLAGS) -c pe.cpp
-
-parser.o: parser.cpp parser.h instr.h
-	$(CXX) $(CXXFLAGS) -c parser.cpp
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o pe
+	rm -f $(OBJECTS) $(TARGET)
