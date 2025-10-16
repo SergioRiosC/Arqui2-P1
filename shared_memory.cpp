@@ -1,6 +1,6 @@
 #include "shared_memory.h"
-#include <cstring>
 #include <iostream>
+#include <cstring>
 
 SharedMemory::SharedMemory(uint32_t words)
     : size_words_(words), mem_(words, 0),
@@ -43,7 +43,7 @@ std::future<void> SharedMemory::writeWordAsync(uint32_t byte_addr, uint64_t valu
     r.type = Request::WRITE_WORD;
     r.byte_addr = byte_addr;
     r.data.resize(8);
-    std::memcpy(r.data.data(), &value, 8);
+    memcpy(r.data.data(), &value, 8);
     r.prom_void = p;
     push_request(std::move(r));
     return p->get_future();
@@ -74,14 +74,13 @@ void SharedMemory::dump_stats() {
     std::cout << "SHM stats: word_reads=" << total_word_reads.load()
               << " word_writes=" << total_word_writes.load()
               << " block_reads=" << total_block_reads.load()
-              << " block_writes=" << total_block_writes.load() << std::endl;
+              << " block_writes=" << total_block_writes.load() << "\n";
 }
 
 int SharedMemory::owner_segment(uint32_t byte_addr) {
     uint32_t word = byte_addr / 8;
-    for (auto& s : segments_) {
-        if (word >= s.base_word && word < s.base_word + s.len_words)
-            return s.pe_id;
+    for (auto &s : segments_) {
+        if (word >= s.base_word && word < s.base_word + s.len_words) return s.pe_id;
     }
     return -1;
 }
@@ -97,7 +96,7 @@ void SharedMemory::worker_loop() {
         Request req;
         {
             std::unique_lock<std::mutex> lk(q_mutex_);
-            q_cv_.wait(lk, [&] { return !q_.empty() || !running_; });
+            q_cv_.wait(lk, [&]{ return !q_.empty() || !running_; });
             if (!running_ && q_.empty()) break;
             req = std::move(q_.front());
             q_.pop_front();
@@ -125,21 +124,22 @@ void SharedMemory::process_request(const Request& r) {
         } else {
             if (r.data.size() != 8) throw std::runtime_error("WRITE_WORD needs 8 bytes");
             uint64_t val;
-            std::memcpy(&val, r.data.data(), 8);
+            memcpy(&val, r.data.data(), 8);
             mem_[word_idx] = val;
             total_word_writes.fetch_add(1);
             if (r.prom_void) r.prom_void->set_value();
         }
     } else {
         if (r.byte_addr % 32 != 0) throw std::runtime_error("Unaligned block access");
-        uint32_t first_word = (r.byte_addr / 8);
+        uint32_t block_idx = (r.byte_addr / 8) / 4;
+        uint32_t first_word = block_idx * 4;
         if (first_word + 4 > size_words_) throw std::runtime_error("Block address out of range");
 
         if (r.type == Request::READ_BLOCK) {
             std::vector<Byte> out(32);
             for (int i = 0; i < 4; ++i) {
                 uint64_t w = mem_[first_word + i];
-                std::memcpy(out.data() + i * 8, &w, 8);
+                memcpy(out.data() + i*8, &w, 8);
             }
             total_block_reads.fetch_add(1);
             if (r.prom_block) r.prom_block->set_value(out);
@@ -147,7 +147,7 @@ void SharedMemory::process_request(const Request& r) {
             if (r.data.size() != 32) throw std::runtime_error("WRITE_BLOCK needs 32 bytes");
             for (int i = 0; i < 4; ++i) {
                 uint64_t w;
-                std::memcpy(&w, r.data.data() + i * 8, 8);
+                memcpy(&w, r.data.data() + i*8, 8);
                 mem_[first_word + i] = w;
             }
             total_block_writes.fetch_add(1);
