@@ -93,6 +93,12 @@ private:
             std::lock_guard<std::mutex> lk(io_mtx);
             std::cout << "[PE" << id_ << "] LOAD before addr=" << addr << " rd=R" << I.rd << "\n";
         }
+        if (addr % DOUBLE_BYTES != 0) {
+            std::lock_guard<std::mutex> lk(io_mtx);
+            std::cerr << "[WARN][PE" << id_ << "] access not 8B-aligned addr=" << addr 
+                    << " (instr pc=" << pc << " rd=R" << I.rd << ")\n";
+        }
+
         double v = cache_->read_double(addr);
         {
             std::lock_guard<std::mutex> lk(io_mtx);
@@ -109,6 +115,12 @@ private:
             std::lock_guard<std::mutex> lk(io_mtx);
             std::cout << "[PE" << id_ << "] STORE before addr=" << addr << " val=" << val << " from R" << I.rd << "\n";
         }
+        if (addr % DOUBLE_BYTES != 0) {
+            std::lock_guard<std::mutex> lk(io_mtx);
+            std::cerr << "[WARN][PE" << id_ << "] access not 8B-aligned addr=" << addr 
+                    << " (instr pc=" << pc << " rd=R" << I.rd << ")\n";
+        }
+
         cache_->write_double(addr, val);
         {
             std::lock_guard<std::mutex> lk(io_mtx);
@@ -123,7 +135,15 @@ private:
     void exec_fadd(const Instr& I) {
         set_reg_double(I.rd, get_reg_double(I.ra) + get_reg_double(I.rb));
     }
-    void exec_inc(const Instr& I) { set_reg_int(I.rd, get_reg_int(I.rd) + 1); }
+    // Tamaño en bytes de un double en este sistema
+    static constexpr int DOUBLE_BYTES = 8;
+
+    // INC: en este ISA se usa para avanzar el puntero al siguiente elemento (double).
+    void exec_inc(const Instr& I){
+        // asumimos que los registros que se incrementan con INC son punteros en bytes
+        set_reg_int(I.rd, get_reg_int(I.rd) + DOUBLE_BYTES);
+    }
+
     void exec_dec(const Instr& I) { set_reg_int(I.rd, get_reg_int(I.rd) - 1); }
     void exec_jnz(const Instr& I) {
         if (get_reg_int(I.rd) != 0) {
