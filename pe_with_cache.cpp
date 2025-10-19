@@ -9,7 +9,7 @@
 #include <memory>
 #include <iomanip>
 
-
+#include "pe.h"
 #include "cache.hpp"
 #include "parser.h"   
 #include "instr.h"    
@@ -26,6 +26,7 @@
 static std::atomic<int> pe_started{0};
 static std::atomic<int> pe_finished{0};
 // ---------------- PE ----------------
+/*
 class PE {
 public:
     // ahora el cache es el tipo Cache definido en cache.hpp
@@ -175,7 +176,7 @@ private:
     double regs_raw[8];
     std::vector<Instr> program;
     std::unordered_map<std::string,size_t> label_map;
-};
+};*/
 
 // ---------------- Main ----------------
 #ifndef STEPPER_APP
@@ -202,7 +203,7 @@ int main(int argc, char** argv) {
     shm.add_segment(3, static_cast<uint32_t>(3*(needed_words/4 + 1)), static_cast<uint32_t>(needed_words/4 + 1));
     shm.start();
 
-    SharedMemoryAdapter mem(&shm);   // <- este es el “Memory” real para la caché
+    SharedMemoryAdapter mem(&shm);   // <- este es el "Memory" real para la caché
     Interconnect bus;
 
     // Inicializa A y B vía adaptador (byte addresses)
@@ -218,7 +219,7 @@ int main(int argc, char** argv) {
     std::vector<std::unique_ptr<PE>> pes;
     caches.reserve(P); pes.reserve(P);
     for (int i = 0; i < P; ++i) {
-        caches.emplace_back(std::make_unique<Cache>(i, &mem, &bus)); // &mem es SharedMemoryAdapter*
+        caches.emplace_back(std::make_unique<Cache>(i, &mem, &bus));
         pes.emplace_back(std::make_unique<PE>(i, caches.back().get()));
     }
 
@@ -252,12 +253,6 @@ int main(int argc, char** argv) {
     for (auto &t : threads) t.join();
 
     bus.flush_all();   // <- garantiza que DRAM tiene los últimos valores
-
-    double s0 = mem.load64(112 * 8);
-    double s1 = mem.load64(113 * 8);
-    double s2 = mem.load64(114 * 8);
-    double s3 = mem.load64(115 * 8);
-
 
     // Flush para asegurar write-back antes de leer S
     for (auto &c : caches) c->flush_all();
