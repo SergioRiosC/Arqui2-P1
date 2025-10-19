@@ -26,6 +26,9 @@
 
 static std::mutex io_mtx;
 
+class SharedMemoryAdapter;      // forward-declare del adaptador real
+using Memory = SharedMemoryAdapter; // alias: donde el cache usa "Memory*", en realidad será SharedMemoryAdapter*
+
 // ------------------------------- Parámetros HW --------------------------------
 namespace hw {
 constexpr size_t kBlockBytes = 32;    // 32 B por línea
@@ -69,39 +72,16 @@ struct SnoopSummary {
 };
 
 // ------------------------------- Memoria --------------------------------------
-class Memory {
-public:
-    Memory() { bytes.resize(hw::kMemBytes, 0); }
+struct IMemory {
+    virtual ~IMemory() = default;
 
-    void writeBlockAligned(uint64_t block_addr, const std::array<uint8_t, hw::kBlockBytes>& data) {
-        std::lock_guard<std::mutex> lk(m_);
-        assert((block_addr % hw::kBlockBytes) == 0);
-        std::memcpy(&bytes[block_addr], data.data(), hw::kBlockBytes);
-    }
+    // Leer/escribir bloques alineados a 32 B (32 bytes)
+    virtual void writeBlockAligned(uint64_t block_addr, const std::array<uint8_t, hw::kBlockBytes>& data) = 0;
+    virtual void readBlockAligned(uint64_t block_addr, std::array<uint8_t, hw::kBlockBytes>& out) = 0;
 
-    void readBlockAligned(uint64_t block_addr, std::array<uint8_t, hw::kBlockBytes>& out) {
-        std::lock_guard<std::mutex> lk(m_);
-        assert((block_addr % hw::kBlockBytes) == 0);
-        std::memcpy(out.data(), &bytes[block_addr], hw::kBlockBytes);
-    }
-
-    // Accesos escalares de 64 bits (doble precisión)
-    double load64(uint64_t addr) {
-        std::lock_guard<std::mutex> lk(m_);
-        assert(addr + 8 <= bytes.size());
-        double val;
-        std::memcpy(&val, &bytes[addr], 8);
-        return val;
-    }
-    void store64(uint64_t addr, double val) {
-        std::lock_guard<std::mutex> lk(m_);
-        assert(addr + 8 <= bytes.size());
-        std::memcpy(&bytes[addr], &val, 8);
-    }
-
-private:
-    std::vector<uint8_t> bytes;
-    std::mutex m_;
+    // Accesos escalares de 64 bits (doble precisión) usando direcciones en bytes
+    virtual double load64(uint64_t addr) = 0;
+    virtual void store64(uint64_t addr, double val) = 0;
 };
 
 // ------------------------------- Direccionamiento -----------------------------
@@ -136,12 +116,14 @@ public:
         caches_.push_back(c);
     }
 
-    // Broadcast + recolección de "shared" y writebacks implícitos
     SnoopSummary broadcast(const BusMessage& msg, Cache* origin);
+
+    void flush_all();
 
 private:
     std::vector<Cache*> caches_;
-    std::mutex m_;
+    std::mutex m_;            // protege la lista
+    std::mutex bus_mutex_;    // <<< NUEVO: serializa TODAS las transacciones
 };
 
 // ------------------------------- Caché ----------------------------------------
@@ -174,12 +156,13 @@ struct Stats {
 
 class Cache {
 public:
-    Cache(int pe_id, Memory* mem, Interconnect* ic)
-        : pe_id_(pe_id), mem_(mem), ic_(ic) {
+    Cache(int pe_id, IMemory* mem, Interconnect* ic)
+    : pe_id_(pe_id), mem_(mem), ic_(ic) {
         sets_.resize(hw::kSets);
         for (auto& set : sets_) set.fill(CacheLine{});
         if (ic_) ic_->register_cache(this);
     }
+
 
     // ---- API pública para el PE ----
     double read_double(uint64_t addr) {
@@ -395,6 +378,18 @@ public:
             }
         }
     }
+    MESI get_state(uint32_t set_idx, uint32_t way) const {
+        std::lock_guard<std::mutex> lk(m_);
+        return sets_[set_idx][way].state;
+    }
+    uint64_t get_tag(uint32_t set_idx, uint32_t way) const {
+        std::lock_guard<std::mutex> lk(m_);
+        return sets_[set_idx][way].tag;
+    }
+    bool get_recent(uint32_t set_idx, uint32_t way) const {
+        std::lock_guard<std::mutex> lk(m_);
+        return sets_[set_idx][way].recent;
+    }
 
 
 private:
@@ -478,7 +473,7 @@ private:
 
 private:
     int pe_id_;
-    Memory* mem_ = nullptr;
+    IMemory* mem_ = nullptr;
     Interconnect* ic_ = nullptr;
 
     std::vector<std::array<CacheLine, hw::kWays>> sets_;
@@ -489,6 +484,7 @@ private:
 
 // ---------------------- Interconnect::broadcast implementación ----------------
 SnoopSummary Interconnect::broadcast(const BusMessage& msg, Cache* origin) {
+    std::unique_lock<std::mutex> buslk(bus_mutex_);
     std::vector<Cache*> local;
     {
         std::lock_guard<std::mutex> lk(m_);
@@ -521,6 +517,16 @@ SnoopSummary Interconnect::broadcast(const BusMessage& msg, Cache* origin) {
     }
     return sum;
 }
+void Interconnect::flush_all() {
+    std::unique_lock<std::mutex> buslk(bus_mutex_);
+    std::vector<Cache*> local;
+    {
+        std::lock_guard<std::mutex> lk(m_);
+        local = caches_;
+    }
+    for (auto* c : local) c->flush_all();  // aquí Cache ya está completo
+}
+
 
 
 // ------------------------------- Mini demo opcional ---------------------------

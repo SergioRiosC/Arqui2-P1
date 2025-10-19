@@ -9,14 +9,18 @@
 #include <memory>
 #include <iomanip>
 
-// incluye el cache.hpp de tu compañero (contiene Memory, Interconnect, Cache)
+
 #include "cache.hpp"
-#include "parser.h"   // tu parser existente
-#include "instr.h"    // tu definición de Instr y OpCode
+#include "parser.h"   
+#include "instr.h"    
+#include "shared_memory.h"
+#include "shared_memory_adapter.h"
 
 
 #include <atomic>
 #include <chrono>
+
+
 
 //static std::mutex io_mtx;
 static std::atomic<int> pe_started{0};
@@ -57,6 +61,18 @@ public:
     }
     pe_finished.fetch_add(1);
 }
+    // --- PE getters para stepping ---
+    int get_pc() const { return pc; }
+    bool is_halted() const { return halt_flag; }
+
+    // Imprime registros
+    void dump_regs(std::ostream& os = std::cout) const {
+        std::lock_guard<std::mutex> lk(io_mtx);
+        os << "[PE" << id_ << "] PC=" << pc << " HALT=" << halt_flag << "\n";
+        for (int i = 0; i < 8; ++i) {
+            os << "  R" << i << " = " << get_reg_double(i) << "\n";
+        }
+    }
 
 
     double get_reg_double(int r) const { return regs_raw[r]; }
@@ -162,113 +178,107 @@ private:
 };
 
 // ---------------- Main ----------------
-int main() {
+#ifndef STEPPER_APP
+int main(int argc, char** argv) {
     using namespace hw;
 
-    // Memoria (la del cache.hpp)
-    Memory mem;            // bytes internamente
+    // -------- parámetros --------
+    int N = 8;                  // por defecto
+    constexpr int P = 4;        // SIEMPRE 4 PEs
+    if (argc >= 2) N = std::max(1, std::atoi(argv[1]));
+
+    // Layout: A[0..N-1], B[0..N-1], S[0..P-1]
+    const size_t baseA_words = 0;
+    const size_t baseB_words = baseA_words + static_cast<size_t>(N);
+    const size_t baseS_words = baseB_words + static_cast<size_t>(N);
+    const size_t needed_words = baseS_words + P;
+
+    // -------- memoria compartida + adaptador --------
+    SharedMemory shm(static_cast<uint32_t>(std::max<size_t>(needed_words, hw::kMemDoubles)));
+    // Opcional: segmentar 4 regiones (no obligatorio para que funcione)
+    shm.add_segment(0, 0,                 static_cast<uint32_t>(needed_words/4 + 1));
+    shm.add_segment(1, static_cast<uint32_t>(needed_words/4 + 1), static_cast<uint32_t>(needed_words/4 + 1));
+    shm.add_segment(2, static_cast<uint32_t>(2*(needed_words/4 + 1)), static_cast<uint32_t>(needed_words/4 + 1));
+    shm.add_segment(3, static_cast<uint32_t>(3*(needed_words/4 + 1)), static_cast<uint32_t>(needed_words/4 + 1));
+    shm.start();
+
+    SharedMemoryAdapter mem(&shm);   // <- este es el “Memory” real para la caché
     Interconnect bus;
 
-    const int N = 8;
-    const int P = 4;
-    const size_t baseA_words = 0;
-    const size_t baseB_words = 100;
-    const size_t baseS_words = 300;
-    const int seg = N / P;
-
-    // Inicializar vectores A y B en memoria (usar direcciones en bytes)
+    // Inicializa A y B vía adaptador (byte addresses)
     for (int i = 0; i < N; ++i) {
-        uint64_t addrA = (baseA_words + i) * 8ull;
-        uint64_t addrB = (baseB_words + i) * 8ull;
-        mem.store64(addrA, double(i + 1));
-        mem.store64(addrB, double((i + 1) * 2));
+        mem.store64((baseA_words + i) * 8ull, double(i + 1));        // A[i]
+        mem.store64((baseB_words + i) * 8ull, double((i + 1) * 2));  // B[i]
     }
+    // Inicializa S
+    for (int p = 0; p < P; ++p) mem.store64((baseS_words + p) * 8ull, 0.0);
 
-    // Crear caches y PEs
+    // -------- caches y PEs --------
     std::vector<std::unique_ptr<Cache>> caches;
     std::vector<std::unique_ptr<PE>> pes;
-
+    caches.reserve(P); pes.reserve(P);
     for (int i = 0; i < P; ++i) {
-        caches.emplace_back(std::make_unique<Cache>(i, &mem, &bus));
+        caches.emplace_back(std::make_unique<Cache>(i, &mem, &bus)); // &mem es SharedMemoryAdapter*
         pes.emplace_back(std::make_unique<PE>(i, caches.back().get()));
     }
 
-    // Cargar el programa ASM (dotprod.asm)
+    // -------- programa --------
     std::ifstream fin("dotprod.asm");
-    if (!fin) {
-        std::cerr << "Error: no se pudo abrir dotprod.asm\n";
-        return 1;
-    }
+    if (!fin) { std::cerr << "Error: no se pudo abrir dotprod.asm\n"; return 1; }
     std::stringstream buffer; buffer << fin.rdbuf();
-    std::vector<Instr> prog;
-    std::unordered_map<std::string, size_t> labels;
+    std::vector<Instr> prog; std::unordered_map<std::string,size_t> labels;
     parse_asm(buffer.str(), prog, labels);
 
-    // Inicializar registros (NOTA: guardamos direcciones en BYTES)
+    // -------- reparto balanceado con resto --------
+    const int base_len = N / P;
+    const int rest = N % P;
+    auto start_index_of = [&](int pe) { return pe * base_len + std::min(pe, rest); };
+    auto len_of         = [&](int pe) { return base_len + (pe < rest ? 1 : 0); };
+
     for (int p = 0; p < P; ++p) {
+        const int start = start_index_of(p);
+        const int len   = len_of(p);
         pes[p]->load_program(prog, labels);
-        // R0 = inicio segmento A en bytes
-        pes[p]->set_reg_int(0, int((baseA_words + p * seg) * 8));
-        pes[p]->set_reg_int(1, int((baseB_words + p * seg) * 8));
-        pes[p]->set_reg_int(2, int((baseS_words + p) * 8)); // donde STORE escribirá la suma parcial (bytes)
-        pes[p]->set_reg_int(3, seg);   // contador N/P
-        pes[p]->set_reg_double(4, 0.0); // acumulador
+        pes[p]->set_reg_int(0, int((baseA_words + start) * 8)); // &A[start] bytes
+        pes[p]->set_reg_int(1, int((baseB_words + start) * 8)); // &B[start] bytes
+        pes[p]->set_reg_int(2, int((baseS_words + p) * 8));     // &S[p] bytes
+        pes[p]->set_reg_int(3, len);                            // longitud tramo
+        pes[p]->set_reg_double(4, 0.0);                         // acumulador
     }
 
-    // Ejecutar PEs en paralelo
+    // -------- ejecutar --------
     std::vector<std::thread> threads;
-    for (int p = 0; p < P; ++p) {
-        threads.emplace_back([&pes, p](){ pes[p]->run(); });
-    }
-    // lanzar un hilo watchdog que imprimirá el estado si tarda > X segundos
-std::atomic<bool> done{false};
-std::thread watchdog([&]() {
-    using namespace std::chrono_literals;
-    for (int i=0;i<60 && !done.load(); ++i) { // 60 s total
-        std::this_thread::sleep_for(1s);
-    }
-    if (!done.load()) {
-        std::lock_guard<std::mutex> lk(io_mtx);
-        std::cout << "WATCHDOG: timeout reached. started=" << pe_started.load()
-                  << " finished=" << pe_finished.load() << "\n";
-    }
-});
+    for (int p = 0; p < P; ++p) threads.emplace_back([&pes, p](){ pes[p]->run(); });
     for (auto &t : threads) t.join();
 
-    done = true;
-watchdog.join();
+    bus.flush_all();   // <- garantiza que DRAM tiene los últimos valores
 
-    // Antes de leer memoria, forzamos flush de caches (write-back -> memory)
-    for (auto &c : caches) {
-        c->flush_all(); // Debes haber agregado flush_all() en cache.hpp como se indicó
-    }
+    double s0 = mem.load64(112 * 8);
+    double s1 = mem.load64(113 * 8);
+    double s2 = mem.load64(114 * 8);
+    double s3 = mem.load64(115 * 8);
 
-    // Mostrar sumas parciales (leer memory con direcciones en bytes)
+
+    // Flush para asegurar write-back antes de leer S
+    for (auto &c : caches) c->flush_all();
+
+    // -------- resultados --------
     for (int p = 0; p < P; ++p) {
         uint64_t addrS = (baseS_words + p) * 8ull;
-        double val = mem.load64(addrS);
         std::cout << "PE" << p << " sum stored at M[" << (baseS_words + p)
-                  << "] = " << val << "\n";
+                  << "] = " << mem.load64(addrS) << "\n";
     }
 
-    // Reducción final
     double total = 0.0;
-    for (int p = 0; p < P; ++p) {
-        uint64_t addrS = (baseS_words + p) * 8ull;
-        total += mem.load64(addrS);
-    }
+    for (int p = 0; p < P; ++p) total += mem.load64((baseS_words + p) * 8ull);
 
     double expected = 0.0;
-    for (int i = 0; i < N; ++i) {
-        uint64_t a = (baseA_words + i) * 8ull;
-        uint64_t b = (baseB_words + i) * 8ull;
-        expected += mem.load64(a) * mem.load64(b);
-    }
+    for (int i = 0; i < N; ++i)
+        expected += mem.load64((baseA_words + i) * 8ull) * mem.load64((baseB_words + i) * 8ull);
 
     std::cout << "\nProducto punto (reducción final) = " << total << "\n";
     std::cout << "Producto punto (esperado secuencial) = " << expected << "\n\n";
 
-    // Estadísticas por cache/PE (la cache mantiene stats propios)
     std::cout << "Estadísticas por Cache (por PE):\n";
     for (int p = 0; p < P; ++p) {
         const auto &s = caches[p]->stats();
@@ -279,5 +289,7 @@ watchdog.join();
                   << " bus_msgs=" << s.bus_msgs << "\n";
     }
 
+    shm.stop(); // detener el hilo de la memoria compartida
     return 0;
 }
+#endif
