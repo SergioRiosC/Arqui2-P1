@@ -4,16 +4,7 @@
 // Definir el mutex global
 std::mutex io_mtx;
 
-// Implementaciones de funciones inline
-const char* mesi_str(MESI s) {
-    switch (s) {
-        case MESI::Invalid:   return "I";
-        case MESI::Shared:    return "S";
-        case MESI::Exclusive: return "E";
-        case MESI::Modified:  return "M";
-    }
-    return "?";
-}
+
 
 AddrFields Address::split(uint64_t addr) {
     uint64_t off = addr & Address::kOffMask;
@@ -90,7 +81,7 @@ double Cache::read_double(uint64_t addr) {
     std::lock_guard<std::mutex> lk(m_);
     auto f2 = Address::split(addr);
     uint32_t victim = victim_index(set_idx);
-    evict_if_dirty(set_idx, victim, addr);
+    evict_if_dirty(set_idx, victim);
     fill_from_mem(addr, set_idx, victim);
 
     MESI new_state = sum.shared_seen ? MESI::Shared : MESI::Exclusive;
@@ -151,7 +142,7 @@ void Cache::write_double(uint64_t addr, double value) {
         std::lock_guard<std::mutex> lk(m_);
         auto [hit3, sidx3, w3] = probe(f2.tag, f2.index);
         uint32_t victim = victim_index(sidx3);
-        evict_if_dirty(sidx3, victim, addr);
+        evict_if_dirty(sidx3, victim);
         fill_from_mem(addr, sidx3, victim);
         MESI old_state = sets_[sidx3][victim].state;
         record_transition(sidx3, victim, old_state, MESI::Modified, f2.tag, addr);
@@ -286,7 +277,7 @@ void Cache::mark_recent(uint32_t set_idx, uint32_t way) {
     sets_[set_idx][1 - way].recent = false;
 }
 
-void Cache::evict_if_dirty(uint32_t set_idx, uint32_t& way, uint64_t new_addr) {
+void Cache::evict_if_dirty(uint32_t set_idx, uint32_t& way) {
     way = victim_index(set_idx);
     auto& line = sets_[set_idx][way];
     if (line.state == MESI::Modified) {

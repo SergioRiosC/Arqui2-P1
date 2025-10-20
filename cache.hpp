@@ -34,7 +34,15 @@ constexpr size_t kMemBytes   = kMemDoubles * sizeof(uint64_t);
 
 enum class MESI : uint8_t { Invalid=0, Shared=1, Exclusive=2, Modified=3 };
 
-inline const char* mesi_str(MESI s);
+inline const char* mesi_str(MESI s) {
+    switch (s) {
+        case MESI::Invalid:   return "I";
+        case MESI::Shared:    return "S";
+        case MESI::Exclusive: return "E";
+        case MESI::Modified:  return "M";
+        default: return "?";
+    }
+}
 
 enum class BusCmd : uint8_t { BusRd, BusRdX, BusUpgr, Flush };
 
@@ -142,7 +150,7 @@ private:
     CacheLine& choose_victim(uint32_t set_idx);
     uint32_t victim_index(uint32_t set_idx) const;
     void mark_recent(uint32_t set_idx, uint32_t way);
-    void evict_if_dirty(uint32_t set_idx, uint32_t& way, uint64_t new_addr);
+    void evict_if_dirty(uint32_t set_idx, uint32_t& way);
     void fill_from_mem(uint64_t addr, uint32_t set_idx, uint32_t way);
     double load_from_line(uint32_t set_idx, uint32_t way, uint32_t off) const;
     void store_into_line(uint32_t set_idx, uint32_t way, uint32_t off, double v);
