@@ -183,7 +183,7 @@ private:
 int main(int argc, char** argv) {
     using namespace hw;
 
-    // -------- parámetros --------
+    // -------- parametros --------
     int N = 8;                  // por defecto
     constexpr int P = 4;        // SIEMPRE 4 PEs
     if (argc >= 2) N = std::max(1, std::atoi(argv[1]));
@@ -203,10 +203,10 @@ int main(int argc, char** argv) {
     shm.add_segment(3, static_cast<uint32_t>(3*(needed_words/4 + 1)), static_cast<uint32_t>(needed_words/4 + 1));
     shm.start();
 
-    SharedMemoryAdapter mem(&shm);   // <- este es el "Memory" real para la caché
+    SharedMemoryAdapter mem(&shm);   // <- este es el "Memory" real para la cache
     Interconnect bus;
 
-    // Inicializa A y B vía adaptador (byte addresses)
+    // Inicializa A y B via adaptador (byte addresses)
     for (int i = 0; i < N; ++i) {
         mem.store64((baseA_words + i) * 8ull, double(i + 1));        // A[i]
         mem.store64((baseB_words + i) * 8ull, double((i + 1) * 2));  // B[i]
@@ -252,7 +252,7 @@ int main(int argc, char** argv) {
     for (int p = 0; p < P; ++p) threads.emplace_back([&pes, p](){ pes[p]->run(); });
     for (auto &t : threads) t.join();
 
-    bus.flush_all();   // <- garantiza que DRAM tiene los últimos valores
+    bus.flush_all();   // <- garantiza que DRAM tiene los ultimos valores
 
     // Flush para asegurar write-back antes de leer S
     for (auto &c : caches) c->flush_all();
@@ -271,10 +271,10 @@ int main(int argc, char** argv) {
     for (int i = 0; i < N; ++i)
         expected += mem.load64((baseA_words + i) * 8ull) * mem.load64((baseB_words + i) * 8ull);
 
-    std::cout << "\nProducto punto (reducción final) = " << total << "\n";
+    std::cout << "\nProducto punto (reduccion final) = " << total << "\n";
     std::cout << "Producto punto (esperado secuencial) = " << expected << "\n\n";
 
-    std::cout << "Estadísticas por Cache (por PE):\n";
+    std::cout << "Estadisticas por Cache (por PE):\n";
     for (int p = 0; p < P; ++p) {
         const auto &s = caches[p]->stats();
         std::cout << "PE" << p << ": reads=" << s.read_ops

@@ -40,7 +40,7 @@ static inline bool to_int(const std::string& s, int& out) {
     catch(...) { return false; }
 }
 
-// ---------- Construcción del "sistema" ----------
+// ---------- Construccion del "sistema" ----------
 struct System {
     std::shared_ptr<SharedMemory> shm;
     std::unique_ptr<SharedMemoryAdapter> mem;
@@ -49,7 +49,7 @@ struct System {
     std::vector<std::unique_ptr<PE>> pes;
     
     // Constructor que inicializa todo correctamente
-    System(unsigned num_pes, int N = 8) {  // Agregar N como parámetro
+    System(unsigned num_pes, int N = 8) {  // Agregar N como parametro
         // Crear memoria compartida
         shm = std::make_shared<SharedMemory>(512);
         shm->start();
@@ -157,13 +157,13 @@ static void print_help() {
 R"(Comandos:
   help                       - ayuda
   step [N]                   - avanza N instrucciones globales (RR) (default 1)
-  stepi <pe> [N]             - avanza N instrucciones sólo en PE <pe> (default 1)
+  stepi <pe> [N]             - avanza N instrucciones solo en PE <pe> (default 1)
   cont                       - ejecuta hasta que todos halteen o haya breakpoint
   regs [pe]                  - muestra registros (todos si omites pe)
   pc [pe]                    - muestra PC(s)
   mem <addr> [count]         - lee memoria como dobles desde <addr> (hex o dec). count por defecto 8
   cache [pe]                 - dump del estado de cache de <pe>
-  stats                      - estadísticas de todas las caches
+  stats                      - estadisticas de todas las caches
   break <pe> <pc>            - pone breakpoint en PC de ese PE
   breaks                     - lista breakpoints
   clear <pe> <pc>            - quita un breakpoint
@@ -214,7 +214,7 @@ void show_final_results(System& sys, int N) {
     std::cout << "\n=== RESULTADOS ===" << std::endl;
     std::cout << "Producto punto calculado: " << total << std::endl;
     std::cout << "Producto punto esperado:  " << expected << std::endl;
-    std::cout << "¿Correcto? " << (std::abs(total - expected) < 1e-10 ? "SÍ " : "NO ") << std::endl;
+    std::cout << "¿Correcto? " << (std::abs(total - expected) < 1e-10 ? "SI " : "NO ") << std::endl;
     
     // Opcional: mostrar sumas parciales brevemente
     std::cout << "\nSumas parciales: ";
@@ -247,8 +247,8 @@ int main(int argc, char** argv) {
 
     std::unordered_set<Breakpoint,BkHash> breaks;
 
-    // Cargar programa en todos los PEs (necesitarás implementar esto)
-    // Por ahora, dejamos los PEs sin programa para pruebas básicas
+    // Cargar programa en todos los PEs (necesitaras implementar esto)
+    // Por ahora, dejamos los PEs sin programa para pruebas basicas
     
     std::string line;
     while (true) {
@@ -270,7 +270,7 @@ int main(int argc, char** argv) {
             if (t.size()==2) {
                 int pe=-1; 
                 if (!to_int(t[1], pe) || pe<0 || pe>=int(sys.pes.size())) { 
-                    std::cout<<"pe inválido\n"; continue; 
+                    std::cout<<"pe invalido\n"; continue; 
                 }
                 sys.pes[pe]->dump_regs();
             } else {
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
             if (t.size()==2) {
                 int pe=-1; 
                 if (!to_int(t[1], pe) || pe<0 || pe>=int(sys.pes.size())) { 
-                    std::cout<<"pe inválido\n"; continue; 
+                    std::cout<<"pe invalido\n"; continue; 
                 }
                 std::cout << "[PE" << pe << "] PC=" << sys.pes[pe]->get_pc()
                           << " HALT=" << sys.pes[pe]->is_halted() << "\n";
@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
                 if (to_uint64(t[1], tmp)) n=tmp; 
             }
             for (uint64_t k=0; k<n; k++) {
-                // round-robin: avanza 1 instrucción por PE no-halted
+                // round-robin: avanza 1 instruccion por PE no-halted
                 bool advanced = false;
                 for (auto& p : sys.pes) {
                     if (!p->is_halted()) {
@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
             }
             int pe=-1; 
             if (!to_int(t[1], pe) || pe<0 || pe>=int(sys.pes.size())) { 
-                std::cout<<"pe inválido\n"; continue; 
+                std::cout<<"pe invalido\n"; continue; 
             }
             uint64_t n=1; 
             if (t.size()>=3) { 
@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
             }
         }
         else if (cmd=="cont" || cmd=="c" || cmd=="continue") {
-            int max_steps = 10000; // límite de seguridad
+            int max_steps = 10000; // limite de seguridad
             int steps = 0;
             while (any_running(sys.pes) && steps < max_steps) {
                 bool advanced = false;
@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
             }
             
             if (steps >= max_steps) {
-                std::cout << "ALERTA: Se alcanzó el límite de " << max_steps << " pasos" << std::endl;
+                std::cout << "ALERTA: Se alcanzo el limite de " << max_steps << " pasos" << std::endl;
             }
             
             // Mostrar resultados finales
@@ -364,7 +364,7 @@ int main(int argc, char** argv) {
             }
             uint64_t addr=0; 
             if (!to_uint64(t[1], addr)) { 
-                std::cout<<"addr inválida\n"; continue; 
+                std::cout<<"addr invalida\n"; continue; 
             }
             uint64_t cnt=8; 
             if (t.size()>=3) { 
@@ -383,7 +383,7 @@ int main(int argc, char** argv) {
             }
             int pe=-1; 
             if (!to_int(t[1], pe) || pe<0 || pe>=int(sys.pes.size())) { 
-                std::cout<<"pe inválido\n"; continue; 
+                std::cout<<"pe invalido\n"; continue; 
             }
             sys.l1[pe]->dump_state(std::cout);
         }
@@ -403,10 +403,10 @@ int main(int argc, char** argv) {
             }
             int pe=-1, pc=-1;
             if (!to_int(t[1], pe) || pe<0 || pe>=int(sys.pes.size())) { 
-                std::cout<<"pe inválido\n"; continue; 
+                std::cout<<"pe invalido\n"; continue; 
             }
             if (!to_int(t[2], pc) || pc<0) { 
-                std::cout<<"pc inválido\n"; continue; 
+                std::cout<<"pc invalido\n"; continue; 
             }
             breaks.insert(Breakpoint{pe, pc});
             std::cout << "breakpoint añadido en PE" << pe << " PC=" << pc << "\n";
@@ -425,7 +425,7 @@ int main(int argc, char** argv) {
             }
             int pe=-1, pc=-1;
             if (!to_int(t[1], pe) || !to_int(t[2], pc)) { 
-                std::cout<<"args inválidos\n"; continue; 
+                std::cout<<"args invalidos\n"; continue; 
             }
             breaks.erase(Breakpoint{pe, pc});
             std::cout << "breakpoint eliminado\n";
@@ -452,9 +452,9 @@ int main(int argc, char** argv) {
             }
             
             if (steps >= max_steps) {
-                std::cout << "ALERTA: Límite de pasos alcanzado" << std::endl;
+                std::cout << "ALERTA: Limite de pasos alcanzado" << std::endl;
             } else {
-                std::cout << "Ejecución completada en " << steps << " pasos" << std::endl;
+                std::cout << "Ejecucion completada en " << steps << " pasos" << std::endl;
             }
             
             show_final_results(sys, N);

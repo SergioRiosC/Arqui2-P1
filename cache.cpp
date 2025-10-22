@@ -55,6 +55,7 @@ Cache::Cache(int pe_id, IMemory* mem, Interconnect* ic)
     : pe_id_(pe_id), mem_(mem), ic_(ic) {
     sets_.resize(hw::kSets);
     for (auto& set : sets_) set.fill(CacheLine{});
+    stats_ = Stats{};
     if (ic_) ic_->register_cache(this);
 }
 
@@ -72,6 +73,7 @@ double Cache::read_double(uint64_t addr) {
             mark_recent(set_idx, way);
             return load_from_line(set_idx, way, f.offset);
         }
+        stats_.misses++;
     }
 
     BusMessage m{BusCmd::BusRd, addr, pe_id_};
@@ -117,6 +119,7 @@ void Cache::write_double(uint64_t addr, double value) {
                 return;
             }
         }
+        stats_.misses++;
     }
 
     auto f2 = Address::split(addr);
@@ -247,7 +250,7 @@ bool Cache::get_recent(uint32_t set_idx, uint32_t way) const {
     return sets_[set_idx][way].recent;
 }
 
-// Métodos privados
+// Metodos privados
 std::tuple<bool,uint32_t,uint32_t> Cache::probe(uint64_t tag, uint32_t set_idx) const {
     for (uint32_t w=0; w<hw::kWays; ++w) {
         const auto& line = sets_[set_idx][w];
@@ -283,6 +286,7 @@ void Cache::evict_if_dirty(uint32_t set_idx, uint32_t& way) {
     if (line.state == MESI::Modified) {
         uint64_t old_block_addr = reconstruct_block_addr(line.tag, set_idx);
         mem_->writeBlockAligned(old_block_addr, line.data);
+        stats_.writebacks++;
     }
     line.state = MESI::Invalid;
     line.tag   = 0;
@@ -307,6 +311,7 @@ void Cache::store_into_line(uint32_t set_idx, uint32_t way, uint32_t off, double
 void Cache::writeback_line(uint32_t set_idx, uint32_t way, uint64_t addr_for_block) {
     uint64_t block_addr = Address::block_base(addr_for_block);
     mem_->writeBlockAligned(block_addr, sets_[set_idx][way].data);
+    stats_.writebacks++;
 }
 
 uint64_t Cache::reconstruct_block_addr(uint64_t tag, uint32_t set_idx) const {
@@ -317,6 +322,9 @@ uint64_t Cache::reconstruct_block_addr(uint64_t tag, uint32_t set_idx) const {
 
 void Cache::record_transition(uint32_t set, uint32_t way, MESI from, MESI to, uint64_t tag, uint64_t addr) {
     if (from == to) return;
+    if (to == MESI::Modified && from != MESI::Modified) {
+        stats_.upgrades++;
+    }
     trans_.push_back(MESITransition{set,way,from,to,tag,addr});
 }
 

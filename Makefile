@@ -7,7 +7,7 @@ TARGET_STEPPER = stepper
 # Archivos fuente comunes
 COMMON_SOURCES = cache.cpp pe.cpp shared_memory.cpp parser.cpp
 
-# Archivos fuente específicos
+# Archivos fuente especificos
 SIM_SOURCES = pe_with_cache.cpp
 STEPPER_SOURCES = sim_step.cpp
 
@@ -39,9 +39,9 @@ $(TARGET_GUI): $(GUI_SOURCES) $(COMMON_SOURCES) $(GUI_DEPS)
 # Reglas cortas
 sim: $(TARGET_SIM)
 stepper: $(TARGET_STEPPER)
-gui: $(TARGET_GUI)  # Esta línea está bien
+gui: $(TARGET_GUI)  # Esta linea esta bien
 
-# Reglas de ejecución
+# Reglas de ejecucion
 run: $(TARGET_SIM)
 	./$(TARGET_SIM) 8
 
@@ -69,23 +69,23 @@ help:
 	@echo "Makefile para Sistema Multiprocesador con Coherencia MESI"
 	@echo ""
 	@echo "Targets disponibles:"
-	@echo "  all, sim      - Compila la simulación normal (default)"
+	@echo "  all, sim      - Compila la simulacion normal (default)"
 	@echo "  stepper       - Compila el stepper/debugger"
-	@echo "  gui           - Compila la interfaz gráfica"
-	@echo "  run           - Ejecuta simulación con N=8"
+	@echo "  gui           - Compila la interfaz grafica"
+	@echo "  run           - Ejecuta simulacion con N=8"
 	@echo "  run-stepper   - Ejecuta stepper con 4 PEs y N=8"
-	@echo "  run-big       - Ejecuta simulación con N=64"
+	@echo "  run-big       - Ejecuta simulacion con N=64"
 	@echo "  run-stepper-big - Ejecuta stepper con 4 PEs y N=64"
-	@echo "  run-gui       - Ejecuta la interfaz gráfica"
+	@echo "  run-gui       - Ejecuta la interfaz grafica"
 	@echo "  clean         - Elimina ejecutables"
 	@echo "  clean-all     - Elimina ejecutables y headers precompilados"
 	@echo "  help          - Muestra esta ayuda"
 	@echo ""
 	@echo "Uso manual:"
-	@echo "  ./sim [N]              - Simulación con N elementos (default 8)"
+	@echo "  ./sim [N]              - Simulacion con N elementos (default 8)"
 	@echo "  ./stepper [PEs] [N]    - Stepper con PEs procesadores y N elementos"
 	@echo "                           (default: 4 PEs, 8 elementos)"
-	@echo "  ./gui                  - Interfaz gráfica"
+	@echo "  ./gui                  - Interfaz grafica"
 
 # Dependencias
 pe_with_cache.cpp: pe.h cache.hpp shared_memory.h shared_memory_adapter.h parser.h instr.h
