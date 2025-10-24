@@ -34,7 +34,7 @@ $(TARGET_GUI): $(GUI_SOURCES) $(COMMON_SOURCES) $(GUI_DEPS)
 
 # Reglas cortas
 stepper: $(TARGET_STEPPER)
-gui: $(TARGET_GUI)  # Esta linea esta bien
+gui: $(TARGET_GUI) 
 
 # Reglas de ejecucion
 run: $(TARGET_STEPPER)
