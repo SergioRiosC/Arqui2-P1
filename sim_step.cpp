@@ -17,7 +17,7 @@
 #include "instr.h"
 #include "pe.h"
 
-// ---------- Utilidad pequeña de parsing ----------
+// ---------- Utilidad pequena de parsing ----------
 static inline std::vector<std::string> split_ws(const std::string& s) {
     std::istringstream is(s);
     std::vector<std::string> v;
@@ -228,7 +228,7 @@ void show_final_results(System& sys, int N) {
 
 int main(int argc, char** argv) {
     unsigned num_pes = 4;
-    int N = 8;  // Tamaño de vectores por defecto
+    int N = 8;  // Tamano de vectores por defecto
     
     if (argc > 1) {
         int np = 0; 
@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
                 std::cout<<"pc invalido\n"; continue; 
             }
             breaks.insert(Breakpoint{pe, pc});
-            std::cout << "breakpoint añadido en PE" << pe << " PC=" << pc << "\n";
+            std::cout << "breakpoint anadido en PE" << pe << " PC=" << pc << "\n";
         }
         else if (cmd=="breaks") {
             if (breaks.empty()) {
@@ -435,7 +435,7 @@ int main(int argc, char** argv) {
             for (auto& p : sys.pes) {
                 std::cout << "[PE" << p->pe_id() << "] PC=" << p->get_pc() 
                         << " HALT=" << p->is_halted() 
-                        << " Program Size=" << /* necesitamos exponer el tamaño del programa */ "?\n";
+                        << " Program Size=" << /* necesitamos exponer el tamano del programa */ "?\n";
                 p->dump_regs();
             }
         }

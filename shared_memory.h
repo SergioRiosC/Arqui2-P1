@@ -15,7 +15,7 @@ using Byte = uint8_t;
 
 // SEGMENTO DE MEMORIA - Para particionamiento lógico
 struct Segment {
-    int pe_id;          // PE dueño del segmento
+    int pe_id;          // PE dueno del segmento
     uint32_t base_word; // Dirección base en palabras
     uint32_t len_words; // Longitud en palabras
 };
@@ -33,7 +33,7 @@ struct Request {
 // MEMORIA COMPARTIDA - Memoria principal con acceso asíncrono
 class SharedMemory {
 public:
-    explicit SharedMemory(uint32_t words); // Constructor con tamaño en palabras
+    explicit SharedMemory(uint32_t words); // Constructor con tamano en palabras
 
     // Gestión de segmentos
     void add_segment(int pe_id, uint32_t base_word, uint32_t len_words);
@@ -50,10 +50,10 @@ public:
 
     // Utilidades
     void dump_stats(); // Mostrar estadísticas
-    int owner_segment(uint32_t byte_addr); // Encontrar dueño de dirección
+    int owner_segment(uint32_t byte_addr); // Encontrar dueno de dirección
 
 private:
-    uint32_t size_words_;           // Tamaño total en palabras
+    uint32_t size_words_;           // Tamano total en palabras
     std::vector<uint64_t> mem_;     // Almacenamiento principal
     std::vector<Segment> segments_; // Segmentos definidos
 

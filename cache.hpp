@@ -23,7 +23,7 @@ using Memory = SharedMemoryAdapter;
 
 namespace hw {
 // CONFIGURACION DEL SISTEMA DE CACHE
-constexpr size_t kBlockBytes = 32;  // Tamaño de bloque de cache: 32 bytes
+constexpr size_t kBlockBytes = 32;  // Tamano de bloque de cache: 32 bytes
 constexpr size_t kWays       = 2;   // Cache 2-way set associative
 constexpr size_t kLines      = 16;  // Total de lineas de cache
 constexpr size_t kSets       = kLines / kWays; // 8 sets (16/2)
@@ -189,7 +189,7 @@ private:
                          uint64_t tag, uint64_t addr);
 
     // Datos miembros
-    int pe_id_;         // ID del PE dueño
+    int pe_id_;         // ID del PE dueno
     IMemory* mem_ = nullptr;       // Memoria principal
     Interconnect* ic_ = nullptr;   // Bus de interconexion
     std::vector<std::array<CacheLine, hw::kWays>> sets_; // Array de sets

@@ -152,7 +152,7 @@ private:
     void exec_fadd(const Instr& I) {
         set_reg_double(I.rd, get_reg_double(I.ra) + get_reg_double(I.rb));
     }
-    // Tamaño en bytes de un double en este sistema
+    // Tamano en bytes de un double en este sistema
     static constexpr int DOUBLE_BYTES = 8;
 
     // INC: en este ISA se usa para avanzar el puntero al siguiente elemento (double).

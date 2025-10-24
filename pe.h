@@ -62,7 +62,7 @@ private:
     std::vector<Instr> program; // Programa cargado
     std::unordered_map<std::string,size_t> label_map; // Mapa de etiquetas
     
-    static constexpr int DOUBLE_BYTES = 8; // Tamaño de double en bytes
+    static constexpr int DOUBLE_BYTES = 8; // Tamano de double en bytes
 };
 
 #endif

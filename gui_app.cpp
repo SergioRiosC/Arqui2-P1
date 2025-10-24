@@ -46,14 +46,14 @@ private:
     bool final_sum_executed = false;             // Controla si ya se ejecutó la suma final
     std::vector<Instr> program;                  // Programa parseado (instrucciones)
     std::unordered_map<std::string,size_t> labels; // Mapa de etiquetas (MAIN, LOOP, FINAL_SUM)
-    int N = 8;                                   // Tamaño de los vectores A y B
+    int N = 8;                                   // Tamano de los vectores A y B
     std::atomic<bool> system_running{false};     // Indica si el sistema está activo
     std::atomic<bool> pause_execution{true};     // Control de pausa (inicia pausado)
     std::atomic<bool> single_step{false};        // Bandera para modo paso a paso
     int steps_per_frame = 1;                     // Pasos ejecutados por frame en modo continuo
 
 public:
-    // CONSTRUCTOR - Inicializa el sistema con 4 PEs y vectores de tamaño 8
+    // CONSTRUCTOR - Inicializa el sistema con 4 PEs y vectores de tamano 8
     GUISystem() {
         initialize_system(4, 8);
     }
@@ -89,7 +89,7 @@ public:
         // Primero apagar el sistema anterior de forma segura
         shutdown_system();
         
-        // Pequeña pausa para asegurar limpieza completa
+        // Pequena pausa para asegurar limpieza completa
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         
         N = vector_size;
@@ -238,12 +238,12 @@ public:
         }
     }
 
-    // RENDERIZADO PRINCIPAL DE LA GUI - Coordina todos los paneles de visualización
+    // RENDERIZADO PRINCIPAL DE LA GUI
     void render_gui() {
-        // PANEL DE CONTROL PRINCIPAL - controles de ejecución y configuración
+        // PANEL DE CONTROL PRINCIPAL
         ImGui::Begin("Control del Sistema");
         
-        // BOTÓN REINICIAR - recrea todo el sistema desde cero
+        // BOTÓN REINICIAR 
         if (ImGui::Button("Reiniciar Sistema")) {
             initialize_system(4, N);
         }
@@ -267,9 +267,9 @@ public:
         // CONTROL DE VELOCIDAD - pasos ejecutados por frame en modo continuo
         ImGui::SliderInt("Pasos/Frame", &steps_per_frame, 1, 100);
         
-        // CONTROL DE TAMAÑO DE VECTORES - permite cambiar N dinámicamente
+        // CONTROL DE TAMANO DE VECTORES
         static int new_N = N;
-        bool n_changed = ImGui::SliderInt("Tamaño N", &new_N, 1, 100);
+        bool n_changed = ImGui::SliderInt("Tamaño N", &new_N, 1, 253);
         ImGui::SameLine();
         if (ImGui::Button("Aplicar N") || n_changed) {
             if (new_N != N) {
@@ -417,7 +417,7 @@ private:
         const size_t baseB_words = baseA_words + static_cast<size_t>(N);
         const size_t baseS_words = baseB_words + static_cast<size_t>(N);
         
-        // PESTAÑAS PARA DIFERENTES SECCIONES DE MEMORIA
+        // PESTANAS PARA DIFERENTES SECCIONES DE MEMORIA
         if (ImGui::BeginTabBar("MemoryTabs")) {
             if (ImGui::BeginTabItem("Vector A")) {
                 render_memory_segment(baseA_words, N, "A");
@@ -566,7 +566,7 @@ int main(int, char**) {
     SDL_Window* window = SDL_CreateWindow(
         "Sistema Multiprocesador MESI - Debugger",  // Título
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, // Posición centrada
-        1400, 900,                                   // Tamaño (ancho x alto)
+        1400, 900,                                   // Tamano (ancho x alto)
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE     // Flags: OpenGL + redimensionable
     );
 
@@ -628,7 +628,7 @@ int main(int, char**) {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window); // Intercambiar buffers
 
-        // PEQUEÑA PAUSA PARA NO SATURAR LA CPU (~60 FPS)
+        // PEQUENA PAUSA PARA NO SATURAR LA CPU (~60 FPS)
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 
